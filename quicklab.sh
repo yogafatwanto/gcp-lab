@@ -28,7 +28,7 @@ gcloud app services set-traffic default --splits=two=1 --quiet
 
 
 
-gcloud beta container --project "$DEVSHELL_PROJECT_ID" clusters create-auto "autopilot-cluster-1" --region "$REGION" --release-channel "regular" --network "projects/$DEVSHELL_PROJECT_ID/global/networks/default" --subnetwork "projects/$DEVSHELL_PROJECT_ID/regions/$REGION/subnetworks/default" --cluster-ipv4-cidr "/17" --binauthz-evaluation-mode=DISABLED
+gcloud beta container --project "$DEVSHELL_PROJECT_ID" clusters create-auto "autopilot-cluster-1" --region $REGION --release-channel "regular" --network "projects/$DEVSHELL_PROJECT_ID/global/networks/default" --subnetwork "projects/$DEVSHELL_PROJECT_ID/regions/$REGION/subnetworks/default" --cluster-ipv4-cidr "/17" --binauthz-evaluation-mode=DISABLED
 
 gcloud container clusters get-credentials autopilot-cluster-1 --region $REGION --project $DEVSHELL_PROJECT_ID
 
