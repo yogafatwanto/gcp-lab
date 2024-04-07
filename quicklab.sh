@@ -1,129 +1,70 @@
-gcloud auth list
 
-mkdir gcp-course
 
-cd gcp-course
+
+
+gcloud services enable cloudprofiler.googleapis.com
+
+mkdir gcp-logging
+
+cd gcp-logging
 
 git clone https://GitHub.com/GoogleCloudPlatform/training-data-analyst.git
 
 cd training-data-analyst/courses/design-process/deploying-apps-to-gcp
 
+
+
+cat > main.py <<EOF
+from flask import Flask, render_template, request
+import googlecloudprofiler
+
+app = Flask(__name__)
+
+
+@app.route("/")
+def main():
+    model = {"title": "SUBSCRIBE TO QUICKLAB."}
+    return render_template('index.html', model=model)
+
+try:
+    googlecloudprofiler.start(verbose=3)
+except (ValueError, NotImplementedError) as exc:
+    print(exc)
+
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=8080, debug=True, threaded=True)
+
+EOF
+
+
+
+cat > requirements.txt <<EOF
+Flask==2.0.3
+itsdangerous==2.0.1
+Jinja2==3.0.3
+google-cloud-profiler==3.0.6
+protobuf==3.20.1
+
+EOF
+
+
+
 docker build -t test-python .
 
 
-cat > app.yaml <<EOF_END
+
+
+cat > app.yaml <<EOF
 runtime: python39
-EOF_END
+EOF
+
 
 gcloud app create --region=$REGION
 
 gcloud app deploy --version=one --quiet
 
-sed -i '8c\    model = {"title": "Hello App Engine"}' main.py
+
+gcloud compute instances create my-instance --zone=europe-west1-b
 
 
-gcloud app deploy --version=two --no-promote --quiet
-
-gcloud app services set-traffic default --splits=two=1 --quiet
-
-
-
-gcloud beta container --project "$DEVSHELL_PROJECT_ID" clusters create-auto "autopilot-cluster-1" --region $REGION --release-channel "regular" --network "projects/$DEVSHELL_PROJECT_ID/global/networks/default" --subnetwork "projects/$DEVSHELL_PROJECT_ID/regions/$REGION/subnetworks/default" --cluster-ipv4-cidr "/17" --binauthz-evaluation-mode=DISABLED
-
-gcloud container clusters get-credentials autopilot-cluster-1 --region $REGION --project $DEVSHELL_PROJECT_ID
-
-kubectl get nodes
-
-sed -i '8c\    model = {"title": "Hello Kubernetes Engine"}' main.py
-
-
-cat > kubernetes-config.yaml <<EOF_END
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: devops-deployment
-  labels:
-    app: devops
-    tier: frontend
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: devops
-      tier: frontend
-  template:
-    metadata:
-      labels:
-        app: devops
-        tier: frontend
-    spec:
-      containers:
-      - name: devops-demo
-        image: <YOUR IMAGE PATH HERE>
-        ports:
-        - containerPort: 8080
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: devops-deployment-lb
-  labels:
-    app: devops
-    tier: frontend-lb
-spec:
-  type: LoadBalancer
-  ports:
-  - port: 80
-    targetPort: 8080
-  selector:
-    app: devops
-    tier: frontend
-EOF_END
-
-
-gcloud artifacts repositories create devops-demo \
-    --repository-format=docker \
-    --location=$REGION
-
-gcloud auth configure-docker $REGION-docker.pkg.dev
-
-cd ~/gcp-course/training-data-analyst/courses/design-process/deploying-apps-to-gcp
-gcloud builds submit --tag $REGION-docker.pkg.dev/$DEVSHELL_PROJECT_ID/devops-demo/devops-image:v0.2 .
-
-
-
-sed -i "23c\        image: $REGION-docker.pkg.dev/$DEVSHELL_PROJECT_ID/devops-demo/devops-image:v0.2" kubernetes-config.yaml
-
-
-kubectl apply -f kubernetes-config.yaml
-
-kubectl get pods
-
-kubectl get services
-
-
-sed -i '8c\    model = {"title": "Hello Cloud Run"}' main.py
-
-
-cd ~/gcp-course/training-data-analyst/courses/design-process/deploying-apps-to-gcp
-gcloud builds submit --tag $REGION-docker.pkg.dev/$DEVSHELL_PROJECT_ID/devops-demo/cloud-run-image:v0.1 .
-
-
-sleep 30
-
-# Store the output of the command in a variable
-image_digest=$(gcloud container images list-tags $REGION-docker.pkg.dev/$DEVSHELL_PROJECT_ID/devops-demo/cloud-run-image --format='get(digest)' --limit=10)
-
-
-
-
-echo "y" | gcloud run deploy hello-cloud-run \
---image=$REGION-docker.pkg.dev/$DEVSHELL_PROJECT_ID/devops-demo/cloud-run-image@$image_digest \
---allow-unauthenticated \
---port=8080 \
---max-instances=6 \
---cpu-boost \
---region=$REGION \
---project=$DEVSHELL_PROJECT_ID
