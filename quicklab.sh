@@ -1,70 +1,70 @@
 
 
+export my_region=$REGION
+
+export my_cluster=autopilot-cluster-1
 
 
-gcloud services enable cloudprofiler.googleapis.com
+gcloud container clusters create-auto $my_cluster --region $my_region
 
-mkdir gcp-logging
+gcloud container clusters get-credentials $my_cluster --region $my_region
 
-cd gcp-logging
+kubectl config view
 
-git clone https://GitHub.com/GoogleCloudPlatform/training-data-analyst.git
+kubectl cluster-info
 
-cd training-data-analyst/courses/design-process/deploying-apps-to-gcp
+kubectl config current-context
 
+kubectl config get-contexts
 
-
-cat > main.py <<EOF
-from flask import Flask, render_template, request
-import googlecloudprofiler
-
-app = Flask(__name__)
+kubectl config use-context gke_${DEVSHELL_PROJECT_ID}_${my_region}_autopilot-cluster-1
 
 
-@app.route("/")
-def main():
-    model = {"title": "SUBSCRIBE TO QUICKLAB."}
-    return render_template('index.html', model=model)
+kubectl create deployment --image nginx nginx-1
 
-try:
-    googlecloudprofiler.start(verbose=3)
-except (ValueError, NotImplementedError) as exc:
-    print(exc)
+sleep 30
+
+my_nginx_pod=$(kubectl get pods -o=jsonpath='{.items[0].metadata.name}')
 
 
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=8080, debug=True, threaded=True)
+kubectl top nodes
 
-EOF
+cat > test.html <<EOF_END
+<html> <header><title>This is title</title></header>
+<body> Hello world </body>
+</html>
+EOF_END
+
+kubectl cp ~/test.html $my_nginx_pod:/usr/share/nginx/html/test.html
+
+kubectl expose pod $my_nginx_pod --port 80 --type LoadBalancer
+
+kubectl get services
+
+git clone https://github.com/GoogleCloudPlatform/training-data-analyst
+
+ln -s ~/training-data-analyst/courses/ak8s/v1.1 ~/ak8s
+
+cd ~/ak8s/GKE_Shell/
+
+kubectl apply -f ./new-nginx-pod.yaml
+
+rm new-nginx-pod.yaml 
+
+cat > new-nginx-pod.yaml <<EOF_END
+apiVersion: v1
+kind: Pod
+metadata:
+  name: new-nginx
+  labels:
+    name: new-nginx
+spec:
+  containers:
+  - name: new-nginx
+    image: nginx
+    ports:
+    - containerPort: 80
+EOF_END
 
 
-
-cat > requirements.txt <<EOF
-Flask==2.0.3
-itsdangerous==2.0.1
-Jinja2==3.0.3
-google-cloud-profiler==3.0.6
-protobuf==3.20.1
-
-EOF
-
-
-
-docker build -t test-python .
-
-
-
-
-cat > app.yaml <<EOF
-runtime: python39
-EOF
-
-
-gcloud app create --region=$REGION
-
-gcloud app deploy --version=one --quiet
-
-
-gcloud compute instances create my-instance --zone=europe-west1-b
-
-
+kubectl apply -f ./new-nginx-pod.yaml
