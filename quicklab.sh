@@ -9,7 +9,6 @@ gcloud composer environments create composer-advanced-lab \
   --location=$REGION \
   --image-version=composer-2.6.6-airflow-2.5.3 \
   --zone=$ZONE \
-  --python-version=3
 
 
 gsutil mb -l us gs://$DEVSHELL_PROJECT_ID-quicklab-us
